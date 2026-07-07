@@ -141,6 +141,13 @@ if uploaded_file is not None:
     if error:
         st.error(error)
         st.stop()
+    REQUIRED_COLUMNS=["Date","Description","Amount"]
+    is_schema_invalid=sorted(list(base_df.columns))!=sorted(REQUIRED_COLUMNS)
+    has_missing_values=base_df[REQUIRED_COLUMNS].isnull().any().any()
+    if is_schema_invalid or has_missing_values:
+        with upload_col:
+            st.error("Irrelevant or missing data. Please download the sample data for correct formatting..")
+        st.stop()
 elif fallback_choice.startswith("🧪"):
     base_df = generate_mock_data()
 else:
