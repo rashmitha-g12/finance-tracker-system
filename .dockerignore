@@ -1,0 +1,35 @@
+# Local data -- must never be baked into the image (accounts, transactions)
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Git / GitHub
+.git/
+.github/
+.gitignore
+
+# Docs, not needed inside the image
+README.md
+LICENSE
+
+# OS / editor cruft
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Docker itself
+Dockerfile
+.dockerignore
+docker-compose.yml

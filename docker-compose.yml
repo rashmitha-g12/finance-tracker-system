@@ -1,0 +1,19 @@
+# Personal Finance AI Tracker
+# Run:   docker compose up --build
+# Stop:  docker compose down            (data persists in the named volume)
+# Wipe:  docker compose down -v         (also deletes all accounts/data)
+
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      # Named volume, not a bind mount: keeps data/users.db (accounts,
+      # transactions, category memory) across container rebuilds/restarts
+      # without depending on a specific path on the host machine.
+      - finance_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  finance_data:

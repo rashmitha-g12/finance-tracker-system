@@ -1,18 +1,69 @@
-# 💰 Personal Finance AI Tracker
-A student portfolio project built to explore data engineering and automated categorization.
-A Streamlit dashboard that auto-categorizes bank transactions using a
-TF-IDF + Logistic Regression classifier (with a keyword-rule fallback),
-remembers your own corrections over time, and surfaces spending KPIs
-through interactive Plotly charts.
+<div align="center">
 
-## Project Structure
+# 💰 Personal Finance AI Tracker
+
+**A student portfolio project built to explore data engineering and automated categorization. An AI-powered personal finance dashboard that automatically categorizes your spending, learns from your corrections, and supports multiple private user accounts.**
+
+Built with Streamlit, scikit-learn, and SQLite.
+
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.41%2B-FF4B4B)
+![scikit--learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)
+
+</div>
+
+---
+
+## ✨ Features
+
+- 🤖 **AI-Powered Categorization** — a TF-IDF + Logistic Regression model classifies transactions into Groceries, Utilities, Entertainment, Salary, and Miscellaneous, with a keyword-based fallback so every transaction gets a sensible label.
+- 🧠 **Learns From You** — correct a category once and the app remembers that exact description forever, including custom categories you create on the fly (e.g. "Foods", "Travel").
+- 🔐 **Multi-User Accounts** — signup/login with PBKDF2-hashed passwords (never stored in plain text), a live password-strength meter, and a security-question-based password recovery flow (no email service required).
+- 🔁 **Stays Logged In** — a persistent session token survives page refreshes, so you're not bounced back to the login screen every time you reload.
+- 👤 **Guest Mode** — try the full app with zero signup; guest data is intentionally never written to disk (and never gets a persistent session either), so it can't leak between different guests.
+- 📤 **Flexible Data Entry** — upload a bank CSV, use the built-in 20-transaction demo dataset, or add transactions by hand with live AI category suggestions as you type.
+- 📊 **Interactive Dashboard** — KPI cards (income, spend, net cash flow, savings rate), Plotly charts (category breakdown, monthly trend), and a filterable transaction table.
+- 🛡️ **Data-Quality Guardrails** — future-dated transactions are detected and flagged automatically, since real bank data should never be dated ahead of today.
+- ⚡ **Performance-Conscious UI** — auth forms use Streamlit fragments so live features (like the password meter) don't re-run the entire page on every keystroke.
+- 🐳 **Docker-Ready** — one-command deployment with a persistent named volume for the database.
+
+## 🖼️ Screenshots
+
+| Dashboard | Login page | Signup page |
+|---|---|---|
+| ![Dashboard](screenshots/dashboard.png) | ![Login](screenshots/login.png) | ![Signup](screenshots/signup.png) |
+
+| Transactions | Visualization | Insights |
+|---|---|---|
+| ![Transactions](screenshots/transactions.png) | ![Visualization](screenshots/visualization.png) | ![Insights](screenshots/insights.png) |
+
+## 🧱 Tech Stack
+
+| Layer            | Technology                                    |
+|-------------------|------------------------------------------------|
+| App framework     | [Streamlit](https://streamlit.io)              |
+| Machine learning  | scikit-learn (TF-IDF + Logistic Regression)    |
+| Data handling     | pandas, NumPy                                  |
+| Visualization     | Plotly                                         |
+| Database          | SQLite (Python standard library `sqlite3`)     |
+| Authentication    | PBKDF2-HMAC-SHA256 (standard library `hashlib`)|
+| Containerization  | Docker, Docker Compose                         |
+
+## 📂 Project Structure
 
 ```
 finance_tracker/
 ├── app.py                     # Main entry point / dashboard layout
 ├── requirements.txt
-├── data/                       # Created automatically
-│   └── users.db                 # Database: accounts, transactions, category memory
+├── Dockerfile
+├── docker-compose.yml
+├── .dockerignore
+├── .gitignore
+├── LICENSE
+├── data/                       # Created automatically at runtime
+│   └── users.db                 # Single SQLite file: accounts, sessions, transactions, category memory
 └── core/
     ├── __init__.py
     ├── db.py                     # Shared SQLite connection used by every table below
@@ -21,95 +72,49 @@ finance_tracker/
     ├── transaction_form.py       # Manual transaction entry (editable category)
     ├── category_memory.py        # Learns your corrections + custom categories
     ├── persistence.py            # Manual transactions, stored in users.db
-    ├── auth.py                   # User accounts + password hashing
+    ├── auth.py                   # User accounts, password hashing, recovery
     ├── auth_ui.py                 # Login / signup / logout Streamlit UI
+    ├── session_manager.py         # Keeps you logged in across page refreshes
     └── password_strength.py       # Live password strength meter
 ```
 
-Everything the app persists lives in the single `data/users.db` SQLite
-file: user accounts, manually entered transactions, and learned category
-corrections each get their own table.
+## 🚀 Getting Started
 
-**Guest mode is intentionally never persisted.** "guest" is one shared,
-unauthenticated identity anyone can use without signing up, so writing its
-data to `users.db` would mean every guest silently overwrites or mixes in
-with every other guest's transactions and categories. Guest data lives
-only in `st.session_state` for that browser session and disappears when it
-ends — signing up is what gets you a private, durable account.
-
-## Architecture
-
-- **`core/db.py`** — The single shared SQLite connection (`data/users.db`).
-  `auth.py`, `persistence.py`, and `category_memory.py` each create and
-  query their own tables through this one connection function, so
-  everything stays in one file.
-- **`core/ml_engine.py`** — Trains a scikit-learn `Pipeline` (`TfidfVectorizer`
-  + `LogisticRegression`) on a curated set of bank-description and everyday
-  item patterns, cached across reruns with `st.cache_resource`. Exposes
-  `classify_transaction()` (single description → `(category, confidence)`)
-  and `categorize_dataframe()` (bulk). Checks a learned-overrides dict first,
-  then the model, then falls back to keyword rules. `style_for_category()`
-  gives every category — built-in or custom — a stable color/emoji.
-- **`core/data_loader.py`** — Pure data-layer functions: CSV validation/
-  loading, the 20-row mock dataset, cleaning/coercion, and KPI aggregation
-  (`calculate_metrics`, `category_totals`, `monthly_totals`).
-- **`core/category_memory.py`** — Remembers exact description → category
-  corrections and any custom category names you've created, in two tables
-  (`category_overrides`, `custom_categories`) keyed by username. No-ops for
-  guests (see above).
-- **`core/persistence.py`** — Stores each account's manually entered
-  transactions in the `manual_transactions` table, keyed by username.
-  No-ops for guests (see above).
-- **`core/transaction_form.py`** — The manual-entry form. Suggests a
-  category live as you type, lets you override via dropdown or a custom
-  category, includes a per-row delete button, and remembers whatever you
-  confirm.
-- **`core/auth.py`** — User accounts, in the `users` table of `data/users.db`.
-  Passwords are hashed with PBKDF2-HMAC-SHA256 and a unique per-user salt —
-  never stored in plain text. Exposes `create_user()`, `verify_login()`,
-  `username_exists()`, `is_valid_username()`, plus security-question-based
-  password recovery (`get_security_question()`, `verify_security_answer()`,
-  `reset_password()`) since there's no email integration to send reset
-  links through.
-- **`core/password_strength.py`** — A dependency-free heuristic scorer (0-4)
-  used to drive the live strength meter on both signup and password reset.
-- **`core/auth_ui.py`** — Login, Sign Up, and Forgot Password, switched
-  between via link-style buttons ("Don't have an account? Sign Up",
-  "Already have an account? Log In", "Forgot password?") rather than tabs —
-  this also lets the app auto-redirect you to the login form (with a "your
-  account was created" banner) right after signing up, instead of asking
-  you to click over manually. Signup requires a unique username, full name,
-  matching password/confirm fields, at least a "Fair" password strength
-  score, and a security question + answer for later recovery. Each form is
-  wrapped in `@st.fragment` so typing in it (e.g. updating the password
-  strength meter) only reruns that form, not the whole page — a plain
-  script rerun would otherwise re-execute the CSS, hero banner, and every
-  import on every keystroke-triggered update. Also offers a **guest mode**
-  (no account) for people who'd rather not sign up.
-- **`app.py`** — Composes the above into the dashboard: the auth gate runs
-  first, and only lightweight, stdlib-only modules (`core.auth_ui` →
-  `core.auth`, `core.password_strength`) are imported before it. Heavier
-  imports (pandas, scikit-learn, Plotly, the ML engine) are deferred until
-  *after* login succeeds, so the login screen itself doesn't wait on them.
-  Once past the gate: CSV upload and the manual entry form side-by-side,
-  KPI metric cards, Plotly charts, and tabs for the transaction table and
-  automated insights, all scoped to the logged-in account.
-
-## Running locally
+### Option 1 — Run locally
 
 ```bash
+git clone https://github.com/rashmitha-g12/finance-tracker.git
+cd <repo-name>
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-You'll land on a login/signup screen. Sign up with a username, full name,
-and password (the strength meter needs to show at least "Fair" before
-signup is allowed), or click **"Continue without an account"** to try the
-app in shared guest mode. No CSV on hand once you're in? A radio choice
-next to the uploader lets you pick between the built-in 20-transaction mock
-dataset or starting completely empty.
+Open **http://localhost:8501**.
 
-### About the "Deploy" button
+### Option 2 — Run with Docker
+
+```bash
+docker compose up --build
+```
+
+Open **http://localhost:8501**. Data persists in a named Docker volume across
+restarts: `docker compose down` keeps it, `docker compose down -v` wipes it.
+Prefer plain Docker over Compose?
+
+```bash
+docker build -t finance-tracker .
+docker run -p 8501:8501 -v finance_data:/app/data finance-tracker
+```
+
+## 🕹️ Usage
+
+1. **Sign up** (username, full name, password, and a security question for recovery) or click **"Continue without an account"** to try guest mode.
+2. **Bring in your data** — upload a CSV (`Date, Description, Amount` columns), load the built-in sample dataset, or start empty and add transactions by hand.
+3. **Review AI suggestions** — each transaction is auto-categorized; correct any you disagree with and the app remembers that exact description going forward.
+4. **Explore the dashboard** — KPI cards, category/monthly charts, and a filterable transaction table, all scoped privately to your account.
+5. **Refresh freely** — for real accounts, reloading the page keeps you logged in. (Guest mode intentionally logs you out on refresh, since guest data isn't saved either.)
+
+## About the "Deploy" button
 
 Streamlit adds a **Deploy** button to the toolbar automatically whenever an
 app runs on `localhost`. Clicking it only opens a wizard for publishing
@@ -127,7 +132,7 @@ toolbarMode = "viewer"
 This hides the Deploy button (and the rerun/clear-cache developer options)
 while still showing regular Streamlit is being used to end users.
 
-### A note on `data/`
+## A note on `data/`
 
 The `data/` folder is created automatically the first time someone signs
 up, adds a transaction, or teaches the app a custom category — and it
@@ -144,7 +149,7 @@ when it ends. This is deliberate: "guest" is a single identity shared by
 anyone who skips signup, so persisting it would mean every guest's data
 mixes together. Signing up is what gets you a private, durable account.
 
-### Future-dated transactions
+## Future-dated transactions
 
 Real bank statements only ever contain settled, historical transactions —
 a future date almost always means a typo, a bad CSV export, or a
@@ -155,50 +160,58 @@ flagged, shown in a dismissible warning for review, and excluded from
 totals/charts by default — with a sidebar toggle to include them if you
 decide they're legitimate.
 
+## 🏗️ Architecture
 
-## Real-world considerations before relying on this with real data
+<details>
+<summary><strong>Click to expand a module-by-module breakdown</strong></summary>
 
-This was built to demonstrate the architecture and ML approach cleanly,
-not as a production banking tool. A few gaps worth knowing about:
+<br>
 
-- **Real bank CSVs are messier than the mock data.** Actual exports often
-  have noisy descriptions (`SQ *COFFEE SHOP 4421 XXXX`, truncated merchant
-  codes, reference numbers), inconsistent date formats, and sometimes a
-  different sign convention (some banks report expenses as positive with a
-  separate debit/credit column). You'll likely need to extend
-  `TRAINING_DATA`/`CATEGORY_KEYWORDS` in `core/ml_engine.py` and possibly
-  `clean_transactions()` in `core/data_loader.py` for your bank's actual format.
-- **Single currency assumption.** Everything is formatted and summed as a
-  single `$` figure; a CSV mixing currencies would silently produce
-  meaningless totals. There's no currency column or conversion logic.
-- **No transfer/refund handling.** Moving money between your own accounts,
-  or a refund reversing an earlier charge, will currently be counted as
-  ordinary income/spend, which can distort totals if you track multiple
-  accounts.
-- **Accounts now exist, but auth is basic.** Passwords are hashed with
-  PBKDF2-HMAC-SHA256 + a per-user salt (not stored in plain text), password
-  recovery works via a security question (no email needed), and each
-  account's data is isolated in its own database rows — real improvements
-  over the earlier single-file version. Still missing for a production
-  deployment: no login-attempt rate limiting/lockout, no session expiry,
-  and SQLite isn't built for many concurrent writers — a real multi-tenant
-  deployment would want `bcrypt`/`argon2` hashing, a proper database
-  (Postgres, etc.), and HTTPS enforced at the hosting layer. A security
-  question is also inherently weaker than email/SMS-based recovery (guessable
-  answers, no second factor) — acceptable for a personal project, not for
-  anything handling real financial accounts at scale.
-- **Guest mode is intentionally not persisted at all.** Transactions and
-  categories added in guest mode live only in that browser session and are
-  gone once it ends — by design, since "guest" is one identity shared by
-  anyone who skips signup. Fine for a quick look, not for anything you want
-  to keep.
-- **The classifier is trained on synthetic examples**, not a large labeled
-  real-world dataset, so accuracy on unusual descriptions will be lower
-  than a production model — this is where the category-memory/override
-  system does a lot of the real work over time.
+- **`core/db.py`** — the single shared SQLite connection (`data/users.db`). `auth.py`, `persistence.py`, `category_memory.py`, and `session_manager.py` each own their tables but connect through this one function, so everything stays in one file.
+- **`core/ml_engine.py`** — trains a scikit-learn `Pipeline` (`TfidfVectorizer` + `LogisticRegression`) on a curated set of bank-description and everyday-item patterns, cached across reruns with `st.cache_resource`. Exposes `classify_transaction()` (single description → `(category, confidence)`) and `categorize_dataframe()` (bulk). Checks a learned-overrides dict first, then the model, then falls back to keyword rules. `style_for_category()` gives every category — built-in or custom — a stable color/emoji.
+- **`core/data_loader.py`** — pure data-layer functions: CSV validation/loading, the 20-row mock dataset, cleaning/coercion, future-date flagging, and KPI aggregation (`calculate_metrics`, `category_totals`, `monthly_totals`).
+- **`core/category_memory.py`** — remembers exact description → category corrections and custom category names in two tables (`category_overrides`, `custom_categories`), keyed by username. No-ops for guests.
+- **`core/persistence.py`** — stores each account's manually entered transactions in the `manual_transactions` table, keyed by username. No-ops for guests.
+- **`core/transaction_form.py`** — the manual-entry form: live category suggestions as you type, an editable dropdown with a custom-category option, per-row delete, and remembers whatever you confirm.
+- **`core/auth.py`** — user accounts in the `users` table. Passwords are hashed with PBKDF2-HMAC-SHA256 and a unique per-user salt. Also handles security-question-based password recovery (`get_security_question()`, `verify_security_answer()`, `reset_password()`) since there's no email service integrated.
+- **`core/password_strength.py`** — a dependency-free heuristic scorer (0–4) driving the live strength meter on signup and password reset.
+- **`core/auth_ui.py`** — Login, Sign Up, and Forgot Password, switched between via buttons rather than tabs (tabs can't be switched programmatically), which is what lets the app auto-redirect to the login form right after signup instead of requiring a manual click. Each form is wrapped in `@st.fragment` so typing in it only reruns that form, not the whole page.
+- **`core/session_manager.py`** — persists login across a page refresh via a random token stored in both a `sessions` table and the URL query string (`?session=...`). `st.session_state` is tied to the current browser connection and is wiped on every reload; this is what lets the app recognize a returning, already-logged-in user instead of treating every refresh as a new visitor. Guest logins deliberately skip this.
+- **`app.py`** — composes everything into the dashboard. The auth gate runs first; only lightweight, stdlib-only modules are imported before it, and heavier imports (pandas, scikit-learn, Plotly, the ML engine) are deferred until after login so the login screen itself loads fast.
 
-None of these block using it for personal, local, single-user tracking —
-they're the kind of things to address before treating it as more than that.
+</details>
 
+## 🔒 Security Notes
 
+- Passwords and security-question answers are hashed with **PBKDF2-HMAC-SHA256** and a unique random salt per user — never stored in plain text.
+- Each account's data lives in its own database rows, isolated by username — one deployed instance can safely serve multiple people.
+- **Login sessions persist via a URL token**, not a cookie (Streamlit has no built-in cookie support without an extra component). Tokens are 32 random bytes (~43 characters), expire after 30 days, and are invalidated immediately on logout. This is a reasonable trade-off for a personal/demo project, but note that a URL-based token can leak through browser history in a way an `HttpOnly` cookie wouldn't — worth swapping for real cookie-based sessions before handling sensitive data at scale.
+- **Guest mode is never persisted.** Since "guest" is a single identity shared by anyone who skips signup, writing guest data (or a guest login session) to disk would mean different guests' transactions mix together. Guest data lives only in that browser session's memory and disappears on refresh or tab close.
+- `data/` (containing `users.db`, i.e. every account's real data, password hashes, and active session tokens) is excluded via `.gitignore` and `.dockerignore` — **never remove it from either** if you test this with real data.
 
+## ⚠️ Known Limitations / Roadmap
+
+This project was built to demonstrate the architecture and ML approach cleanly, not as a production banking tool. Documented gaps, in order of what I'd tackle first:
+
+- [ ] **Bank-grade password hashing** — swap PBKDF2 for `bcrypt`/`argon2-cffi` for production use.
+- [ ] **Cookie-based sessions** — replace the URL-token approach in `session_manager.py` with an `HttpOnly` cookie for better security against history/log leakage.
+- [ ] **Real bank CSV formats** — actual exports have noisy descriptions, truncated merchant codes, and sometimes a different sign convention; the classifier's training data would need extending per-bank.
+- [ ] **Multi-currency support** — everything currently assumes a single `$`-denominated currency.
+- [ ] **Transfer/refund detection** — moving money between your own accounts currently just looks like ordinary income/spend.
+- [ ] **Login rate limiting** — no brute-force protection on the login form yet.
+- [ ] **A real database for scale** — SQLite isn't built for many concurrent writers; a multi-tenant deployment would want Postgres behind this.
+- [ ] **Larger training set** — the classifier learns from curated synthetic examples, not a large real-world labeled dataset; the category-memory/override system compensates for this over time, but a bigger corpus would improve out-of-the-box accuracy.
+
+## 📜 License
+
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for details.
+
+## 🙋 About This Project
+
+Built as a portfolio project to demonstrate:
+
+- End-to-end **Streamlit application design** — modular architecture, custom UI components, and performance-aware use of fragments.
+- **Applied machine learning** for text classification (TF-IDF + Logistic Regression) with a practical fallback strategy for low-confidence predictions.
+- **SQLite schema design** for a multi-user application, including per-user data isolation and token-based session persistence.
+- **Authentication fundamentals** — salted password hashing, strength validation, and a creative no-email account-recovery flow.
+- **Containerization** with Docker and Docker Compose, including persistent volumes and health checks.

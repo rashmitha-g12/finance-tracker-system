@@ -25,6 +25,7 @@ made the strength meter and page interactions feel slow before.
 
 import streamlit as st
 
+from core import session_manager
 from core.auth import (
     SECURITY_QUESTIONS,
     create_user,
@@ -91,6 +92,7 @@ def _login_form() -> None:
                 st.session_state["authenticated"] = True
                 st.session_state["username"] = username.strip()
                 st.session_state["full_name"] = full_name
+                session_manager.start_persistent_session(username.strip(), full_name)
                 st.rerun()
             else:
                 st.error(message)
@@ -222,6 +224,9 @@ def render_auth_gate() -> bool:
     """Render the login/signup/forgot-password screen. Returns True once
     someone is authenticated (including guest mode) so the caller can
     proceed; returns False otherwise (the caller should st.stop() right after)."""
+    if not is_authenticated():
+        session_manager.restore_session_from_query_params()
+
     if is_authenticated():
         return True
 
@@ -276,6 +281,7 @@ def render_logout_button() -> None:
         if st.button("🚪 Log Out", use_container_width=True):
             from core import category_memory, transaction_form
 
+            session_manager.end_persistent_session()
             transaction_form.reset_session_cache()
             category_memory.reset_session_cache()
             for key in ("authenticated", "username", "full_name"):
