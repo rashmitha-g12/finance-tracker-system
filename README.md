@@ -83,8 +83,8 @@ finance_tracker/
 ### Option 1 — Run locally
 
 ```bash
-git clone https://github.com/rashmitha-g12/finance-tracker.git
-cd <repo-name>
+git clone https://github.com/rashmitha-g12/finance-tracker-system.git
+cd finance-tracker-system
 pip install -r requirements.txt
 streamlit run app.py
 ```
